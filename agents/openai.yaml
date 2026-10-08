@@ -1,0 +1,6 @@
+interface:
+  display_name: "Codex CLI最高性价比安装skill"
+  short_description: "在用户指定位置部署 DeepSeek 驱动的完整 Codex CLI"
+  default_prompt: "Use $codex-cli-best-value-install to install the complete DeepSeek-powered Codex CLI setup."
+policy:
+  allow_implicit_invocation: true
