@@ -10,6 +10,8 @@ Use this skill only for a Windows local installation requested by the user.
 3. Let the installer finish its API-key onboarding. The user enters their own key interactively; never request it in chat or write it to a configuration file.
 4. Run `scripts\Test-Installation.ps1 -InstallPath <user path>`. Report the two root-level entry points and any prerequisite failure clearly.
 
+If the installer reports an existing Tesseract-OCR installation, stop instead of rerunning it. Have the user uninstall the existing copy and verify that both `C:\Program Files\Tesseract-OCR` and its uninstall entry are gone, then rerun once. The installer protects the local Codex configuration directory so the Codex background process can create its private state directory.
+
 The installer creates exactly two CMD files at the target root: `启动-Codex CLI.cmd` for normal use and `配置-DeepSeek API Key.cmd` for first-time setup or key replacement. Other one-click helpers are placed in `quick-tools`.
 
 Do not modify the Codex desktop app configuration. Do not delete an existing installation; ask the user to choose a new empty directory or handle any migration explicitly.

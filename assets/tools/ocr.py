@@ -16,7 +16,7 @@ args = parser.parse_args()
 
 engine = Path(r"G:\Codex\tools\tesseract\tesseract.exe")
 if not engine.exists():
-    raise SystemExit("Tesseract is missing from G:\\Codex\\tools\\tesseract.")
+    raise SystemExit("Tesseract is missing from this CLI installation's tools\\tesseract directory.")
 if not args.input.is_file():
     raise SystemExit(f"Input file not found: {args.input}")
 

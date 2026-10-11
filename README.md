@@ -17,6 +17,13 @@
 
 Windows 10/11、联网、Node.js/npm、Python 3.10+。缺少 Node 或 Python 时，安装脚本会尝试通过 winget 安装；若系统没有 winget，会停止并说明缺失项。DeepSeek API Key 由用户在本机交互输入。
 
+## 排错：Tesseract OCR
+
+- 如果安装器发现旧版 `Tesseract-OCR`，请先卸载旧版，并确认 `C:\Program Files\Tesseract-OCR` 及其卸载登记均已消失；不要反复运行安装器，否则会重复进入卸载向导。
+- 部分 NSIS 安装器会忽略自定义安装目录并安装到 C 盘。安装脚本会检测该情况并将 OCR 本体复制到目标 CLI 的 `tools\tesseract`，但会保留 C 盘副本，由用户决定是否卸载。
+- 安装脚本会收紧目标 `config` 目录权限，避免 Codex 后台进程因目录对其它用户可写而无法启动。
+- `Test-Installation.ps1` 会检查 OCR 语言包，并运行一次本地 OCR 自检。
+
 ## 开源许可
 
 MIT。Tesseract 与语言数据分别遵循其上游许可；安装脚本从 Tesseract 文档推荐的 Windows 安装源和官方 `tessdata_fast` 下载中文语言数据。

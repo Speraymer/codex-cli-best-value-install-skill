@@ -11,6 +11,11 @@ $root = [IO.Path]::GetFullPath($InstallPath.Trim())
 if ((Test-Path -LiteralPath $root) -and -not $Force -and (Get-ChildItem -LiteralPath $root -Force | Select-Object -First 1)) {
     throw "Target is not empty: $root. Choose a new folder, or rerun with -Force only when you intend to update this installation."
 }
+$legacyTesseractPath = 'C:\Program Files\Tesseract-OCR'
+$legacyTesseractKey = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Tesseract-OCR'
+if ((Test-Path -LiteralPath $legacyTesseractPath) -or (Test-Path -LiteralPath $legacyTesseractKey)) {
+    throw "An existing Tesseract-OCR installation was found. Uninstall it first, then verify that '$legacyTesseractPath' and its uninstall entry are gone before rerunning this installer."
+}
 
 function Require-Command([string]$Name, [string]$WingetId) {
     $found = Get-Command $Name -ErrorAction SilentlyContinue
@@ -34,7 +39,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Codex CLI installation failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'Python tools installation failed.' }
 
 Copy-Item -LiteralPath (Join-Path $skillRoot 'assets\models.json') -Destination (Join-Path $root 'config\models.json') -Force
-Copy-Item -LiteralPath (Join-Path $skillRoot 'assets\tools\*') -Destination (Join-Path $root 'tools') -Force
+Copy-Item -Path (Join-Path $skillRoot 'assets\tools\*') -Destination (Join-Path $root 'tools') -Force
 Copy-Item -LiteralPath (Join-Path $skillRoot 'assets\projects\AGENTS.md') -Destination (Join-Path $root 'projects\AGENTS.md') -Force
 Copy-Item -LiteralPath (Join-Path $skillRoot 'assets\docs\使用说明.md') -Destination (Join-Path $root 'docs\使用说明.md') -Force
 Get-ChildItem -LiteralPath (Join-Path $root 'tools') -Filter '*.py' | ForEach-Object { Write-Utf8 $_.FullName ((Get-Content -LiteralPath $_.FullName -Raw).Replace('G:\Codex', $root)) }
@@ -59,6 +64,10 @@ args = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "$($root.Replace('\
 timeout_ms = 5000
 refresh_interval_ms = 300000
 "@ | ForEach-Object { Write-Utf8 (Join-Path $root 'config\config.toml') $_ }
+
+$currentUser = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+& icacls (Join-Path $root 'config') /inheritance:r /grant:r "${currentUser}:(OI)(CI)F" 'SYSTEM:(OI)(CI)F' 'BUILTIN\Administrators:(OI)(CI)F' | Out-Null
+if ($LASTEXITCODE -ne 0) { throw 'Unable to protect the Codex configuration directory.' }
 
 @"
 `$ErrorActionPreference = 'Stop'
@@ -140,9 +149,14 @@ while (`$true) { `$dir=Join-Path `$work ('pages-{0:d3}' -f `$batch); `$rendered=
 "@ | Set-Content -LiteralPath (Join-Path $root 'quick-tools\Analyze-PDF-Full.cmd') -Encoding ascii
 
 $installer = Join-Path $root 'downloads\tesseract-ocr-w64-setup-5.5.0.20241111.exe'
+$tesseractTarget = Join-Path $root 'tools\tesseract'
 Invoke-WebRequest 'https://github.com/tesseract-ocr/tesseract/releases/download/5.5.0/tesseract-ocr-w64-setup-5.5.0.20241111.exe' -OutFile $installer
-Start-Process -FilePath $installer -ArgumentList '/S',("/D=" + (Join-Path $root 'tools\tesseract')) -Wait
-if (-not (Test-Path -LiteralPath (Join-Path $root 'tools\tesseract\tesseract.exe'))) { throw 'Tesseract installation did not produce the expected local executable.' }
+Start-Process -FilePath $installer -ArgumentList '/S',("/D=" + $tesseractTarget) -Wait
+if (-not (Test-Path -LiteralPath (Join-Path $tesseractTarget 'tesseract.exe'))) {
+    if (-not (Test-Path -LiteralPath (Join-Path $legacyTesseractPath 'tesseract.exe'))) { throw 'Tesseract installation did not produce the expected local executable.' }
+    Copy-Item -Path (Join-Path $legacyTesseractPath '*') -Destination $tesseractTarget -Recurse -Force
+    Write-Warning "The Tesseract installer used its default C: location. A local copy was placed in '$tesseractTarget'; remove the C: copy manually if it is no longer needed."
+}
 foreach ($language in 'chi_sim','chi_tra') { Invoke-WebRequest "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/main/$language.traineddata" -OutFile (Join-Path $root "tools\tesseract\tessdata\$language.traineddata") }
 
 Write-Host "Installed to: $root" -ForegroundColor Green
